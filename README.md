@@ -1,6 +1,6 @@
 # melhor-preco — PrecoJusto Online
 
-Projeto **greenfield** para comparação de preços: o usuário digita um produto e recebe preços por loja, link, data de coleta e histórico simples.
+Aplicacao web para monitoramento inteligente de precos com stack principal em Next.js, TypeScript, Tailwind CSS, Prisma, SQLite e Recharts.
 
 ## MVP enxuto (v1)
 
@@ -63,3 +63,38 @@ test -d src/infra/db && test -d tests/smoke
 ## Primeira ação concreta
 
 Definir o **contrato de busca** (`query`, `categoria`) e o **contrato de resposta normalizada** (`produto`, `loja`, `preco`, `frete`, `preco_total`, `link`, `coletado_em`) antes da implementação dos conectores.
+
+## MVP funcional atual
+
+O repositório inclui um MVP local com:
+
+- Next.js App Router
+- Prisma + SQLite
+- seed deterministico com 45 dias de historico por produto e mercado
+- dashboard em `/`
+- comparacao em `/comparacao`
+- detalhe de produto em `/produtos/<id>`
+- logica de negocio portada do MVP validado anteriormente
+
+## Como executar
+
+```bash
+npm install
+npm run db:generate
+npm run db:push
+npm run db:seed
+npm run dev
+```
+
+Abra `http://localhost:3000`.
+
+## Como validar
+
+```bash
+npm test
+npm run build
+```
+
+## Legado isolado
+
+A implementacao anterior em Python foi preservada em `legacy/python/` apenas como referencia de migracao de dominio.

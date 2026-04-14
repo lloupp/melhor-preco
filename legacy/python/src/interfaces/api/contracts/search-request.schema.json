@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://precojusto.local/schemas/search-request.schema.json",
+  "title": "SearchRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "query",
+    "categoria"
+  ],
+  "properties": {
+    "query": {
+      "type": "string",
+      "minLength": 2,
+      "description": "Texto de busca do produto"
+    },
+    "categoria": {
+      "type": "string",
+      "minLength": 2,
+      "description": "Categoria inicial do MVP (ex.: suplementos)"
+    }
+  }
+}

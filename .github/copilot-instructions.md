@@ -2,25 +2,36 @@
 
 ## Build, test, and lint
 
-No build, test, or lint tooling is configured yet in this repository (no detected manifest or task runner in the project root).
+Current project commands:
+
+```bash
+npm install
+npm run db:generate
+npm run db:push
+npm run db:seed
+npm test
+npm run build
+npm run dev
+```
 
 ## High-level architecture
 
-This is a greenfield price comparison project (see README.md). The architecture is modular and organized as follows:
+This is a price monitoring web app. The main architecture is now:
 
-- `src/connectors/`: Integrations for data sources (e.g., Mercado Livre, structured data, headless scraper)
-- `src/core/`: Core logic (normalization, ranking, history, alerts)
-- `src/infra/`: Infrastructure (db)
-- `src/interfaces/`: Entry points (api, web)
-- `src/jobs/`: Background jobs
-- `tests/smoke/`: Smoke tests
+- `src/app/`: Next.js App Router pages
+- `src/components/`: UI and chart components
+- `src/lib/domain/`: reusable domain rules and formatting
+- `src/lib/services/`: server-side view model composition
+- `src/lib/data.ts`: Prisma-backed data access
+- `prisma/`: schema and seed
+- `tests/`: TypeScript domain tests
+- `legacy/python/`: isolated legacy implementation kept only for reference
 
 ## Key conventions
 
-No project-specific coding conventions are documented yet. Update this file as conventions emerge.
+Project-specific conventions:
 
-If you add stack/tooling files (e.g., `package.json`, `pyproject.toml`), update this document with:
-- Exact build/test/lint commands
-- Single-test execution commands
-- Concrete module boundaries
-- Any repository-specific implementation patterns
+- Preserve the validated business rules in `src/lib/domain/analytics.ts`.
+- Keep data access out of components; use `src/lib/data.ts` and `src/lib/services/`.
+- Do not expand to auth, external APIs, or future connectors in the current MVP stage.
+- The Python implementation is not the active app anymore.

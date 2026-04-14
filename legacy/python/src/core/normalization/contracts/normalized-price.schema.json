@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://precojusto.local/schemas/normalized-price.schema.json",
+  "title": "NormalizedPriceItem",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "produto",
+    "loja",
+    "preco",
+    "frete",
+    "preco_total",
+    "link",
+    "coletado_em"
+  ],
+  "properties": {
+    "produto": {
+      "type": "string",
+      "minLength": 1
+    },
+    "loja": {
+      "type": "string",
+      "minLength": 1
+    },
+    "preco": {
+      "type": "number",
+      "minimum": 0
+    },
+    "frete": {
+      "type": "number",
+      "minimum": 0
+    },
+    "preco_total": {
+      "type": "number",
+      "minimum": 0,
+      "description": "preco + frete"
+    },
+    "link": {
+      "type": "string",
+      "format": "uri"
+    },
+    "coletado_em": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
