@@ -70,19 +70,19 @@ O repositório inclui um MVP local com:
 
 - Next.js App Router
 - Prisma + SQLite
-- seed deterministico com 45 dias de historico por produto e mercado
+- seed deterministico com observacoes brutas, pipeline de normalizacao e 45 dias de historico gerado automaticamente
 - dashboard em `/`
 - comparacao em `/comparacao`
 - detalhe de produto em `/produtos/<id>`
 - logica de negocio portada do MVP validado anteriormente
+- base de automacao para ingestao continua, eventos externos e sinais preditivos cautelosos
 
 ## Como executar
 
 ```bash
 npm install
 npm run db:generate
-npm run db:push
-npm run db:seed
+npm run db:reset
 npm run dev
 ```
 
@@ -94,6 +94,16 @@ Abra `http://localhost:3000`.
 npm test
 npm run build
 ```
+
+## Arquitetura automatica preparada
+
+Fluxo previsto da plataforma:
+
+1. `collect`: novas observacoes entram em `RawPriceObservation`
+2. `normalize`: o sistema tenta parear a observacao com um `Product` canonico
+3. `persist`: observacoes normalizadas viram `PriceRecord`
+4. `analyze`: o sistema recalcula sinais cautelosos em `PredictionSignal`
+5. eventos externos em `ExternalEvent` podem ser materializados como `MarketFactor`
 
 ## Legado isolado
 

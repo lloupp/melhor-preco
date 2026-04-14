@@ -8,40 +8,51 @@ datasource db {
 }
 
 model Product {
-  id           Int            @id
-  name         String
-  category     String
-  unit         String
-  description  String?
-  active       Boolean        @default(true)
-  createdAt    DateTime       @default(now())
-  priceRecords PriceRecord[]
-  marketFactors MarketFactor[]
+  id                 Int                  @id
+  canonicalKey       String               @unique
+  name               String
+  category           String
+  unit               String
+  comparableUnit     String
+  comparableAmount   Float
+  description        String?
+  active             Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  priceRecords       PriceRecord[]
+  marketFactors      MarketFactor[]
+  aliases            ProductAlias[]
+  rawObservations    RawPriceObservation[]
+  externalEventLinks ExternalEventProduct[]
+  predictionSignals  PredictionSignal[]
 }
 
 model Market {
-  id            Int            @id
-  name          String
-  city          String
-  state         String
-  channel       String
-  active        Boolean        @default(true)
-  createdAt     DateTime       @default(now())
-  priceRecords  PriceRecord[]
-  marketFactors MarketFactor[]
+  id              Int                   @id
+  name            String
+  city            String
+  state           String
+  channel         String
+  active          Boolean               @default(true)
+  createdAt       DateTime              @default(now())
+  priceRecords    PriceRecord[]
+  marketFactors   MarketFactor[]
+  rawObservations RawPriceObservation[]
 }
 
 model PriceRecord {
-  id         Int      @id @default(autoincrement())
-  productId  Int
-  marketId   Int
-  price      Float
-  freight    Float
-  totalPrice Float
-  collectedAt DateTime
-  source     String   @default("seed")
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  market     Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  id               Int                  @id @default(autoincrement())
+  productId        Int
+  marketId         Int
+  rawObservationId Int?                 @unique
+  price            Float
+  freight          Float
+  totalPrice       Float
+  unitPrice        Float?
+  collectedAt      DateTime
+  source           String               @default("seed")
+  product          Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  market           Market               @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  rawObservation   RawPriceObservation? @relation(fields: [rawObservationId], references: [id], onDelete: SetNull)
 
   @@unique([productId, marketId, collectedAt])
   @@index([productId, collectedAt])
@@ -49,16 +60,159 @@ model PriceRecord {
 }
 
 model MarketFactor {
-  id          Int      @id @default(autoincrement())
-  productId   Int
-  marketId    Int
-  title       String
-  description String
-  direction   String
-  intensity   Int
-  collectedAt DateTime
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  market      Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  id              Int            @id @default(autoincrement())
+  productId       Int
+  marketId        Int
+  externalEventId Int?
+  title           String
+  description     String
+  direction       String
+  intensity       Int
+  collectedAt     DateTime
+  sourceType      String         @default("market")
+  product         Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  market          Market         @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  externalEvent   ExternalEvent? @relation(fields: [externalEventId], references: [id], onDelete: SetNull)
 
   @@index([productId, collectedAt])
+  @@unique([productId, marketId, title, collectedAt])
+}
+
+model ProductAlias {
+  id                  Int      @id @default(autoincrement())
+  productId           Int
+  alias               String
+  brand               String?
+  packagePattern      String?
+  normalizedUnit      String?
+  normalizedAmount    Float?
+  confidenceThreshold Float    @default(0.6)
+  createdAt           DateTime @default(now())
+  product             Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([alias])
+  @@unique([productId, alias, brand, packagePattern])
+}
+
+model RawPriceObservation {
+  id                  Int              @id @default(autoincrement())
+  sourceType          String
+  sourceName          String
+  collectedAt         DateTime
+  rawProductName      String
+  rawBrand            String?
+  rawPackageInfo      String?
+  rawPrice            Float
+  rawCurrency         String           @default("BRL")
+  city                String
+  neighborhood        String?
+  sourceUrl           String?
+  evidenceText        String?
+  confidenceScore     Float
+  normalizedProductId Int?
+  normalizedName      String?
+  normalizedUnit      String?
+  normalizedAmount    Float?
+  comparableUnitPrice Float?
+  comparableUnit      String?
+  processingStatus    String           @default("pending")
+  processingNotes     String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  normalizedProduct   Product?         @relation(fields: [normalizedProductId], references: [id], onDelete: SetNull)
+  marketId            Int?
+  market              Market?          @relation(fields: [marketId], references: [id], onDelete: SetNull)
+  priceRecord         PriceRecord?
+  issues              ProcessingIssue[]
+
+  @@index([processingStatus, collectedAt])
+  @@index([normalizedProductId, collectedAt])
+}
+
+model ProcessingIssue {
+  id               Int                  @id @default(autoincrement())
+  rawObservationId Int?
+  pipelineRunId    Int?
+  stage            String
+  code             String
+  message          String
+  createdAt        DateTime             @default(now())
+  resolvedAt       DateTime?
+  rawObservation   RawPriceObservation? @relation(fields: [rawObservationId], references: [id], onDelete: SetNull)
+  pipelineRun      PipelineRun?         @relation(fields: [pipelineRunId], references: [id], onDelete: SetNull)
+
+  @@index([stage, createdAt])
+}
+
+model PipelineRun {
+  id            Int               @id @default(autoincrement())
+  stage         String
+  status        String
+  startedAt     DateTime          @default(now())
+  finishedAt    DateTime?
+  inputCount    Int               @default(0)
+  successCount  Int               @default(0)
+  failureCount  Int               @default(0)
+  details       String?
+  createdAt     DateTime          @default(now())
+  issues        ProcessingIssue[]
+}
+
+model ExternalEvent {
+  id               Int                    @id @default(autoincrement())
+  title            String
+  description      String
+  eventType        String
+  sourceName       String
+  occurredAt       DateTime
+  severity         Int
+  confidenceScore  Float
+  signalDirection  String
+  city             String?
+  region           String?
+  impactSummary    String?
+  createdAt        DateTime               @default(now())
+  productLinks     ExternalEventProduct[]
+  categoryLinks    ExternalEventCategory[]
+  marketFactors    MarketFactor[]
+}
+
+model ExternalEventProduct {
+  id              Int           @id @default(autoincrement())
+  externalEventId Int
+  productId       Int
+  relevanceScore  Float
+  externalEvent   ExternalEvent @relation(fields: [externalEventId], references: [id], onDelete: Cascade)
+  product         Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([externalEventId, productId])
+}
+
+model ExternalEventCategory {
+  id              Int           @id @default(autoincrement())
+  externalEventId Int
+  category        String
+  relevanceScore  Float
+  externalEvent   ExternalEvent @relation(fields: [externalEventId], references: [id], onDelete: Cascade)
+
+  @@unique([externalEventId, category])
+  @@index([category])
+}
+
+model PredictionSignal {
+  id               Int       @id @default(autoincrement())
+  productId        Int?
+  category         String?
+  signalType       String
+  confidenceScore  Float
+  message          String
+  rationale        String
+  recommendation   String
+  basedOnDate      DateTime
+  validUntil       DateTime?
+  createdAt        DateTime  @default(now())
+  product          Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([productId, basedOnDate])
+  @@index([category, basedOnDate])
 }
