@@ -4,7 +4,15 @@ import { computeProductMetrics } from "@/lib/domain/analytics";
 
 export type RecommendationDraft = Pick<
   PredictionSignal,
-  "signalType" | "confidenceScore" | "message" | "rationale" | "recommendation" | "basedOnDate" | "validUntil"
+  | "signalType"
+  | "confidenceScore"
+  | "message"
+  | "rationale"
+  | "recommendation"
+  | "regionalSpread"
+  | "pressureScore"
+  | "basedOnDate"
+  | "validUntil"
 > & {
   productId: number;
   category: string;
@@ -20,6 +28,8 @@ export function buildRecommendationSignal(
   const downwardEvents = events.filter((event) => event.signalDirection === "queda");
   const eventPressure = upwardEvents.reduce((sum, item) => sum + item.severity, 0) - downwardEvents.reduce((sum, item) => sum + item.severity, 0);
   const variation = metrics.weeklyVariation ?? 0;
+  const regionalSpread = computeRegionalSpread(records);
+  const pressureScore = Number((Math.max(-10, Math.min(10, eventPressure)) + regionalSpread / 12).toFixed(2));
 
   let signalType = "monitorar";
   let message = `Monitorar ${product.name} nos proximos dias.`;
@@ -32,14 +42,14 @@ export function buildRecommendationSignal(
     message = `${product.name} apresenta melhor janela provavel de compra, sem promessa deterministica.`;
     recommendation = "Melhor janela provavel de compra";
     rationale = "Preco abaixo da faixa, variacao recente comportada e ausencia de pressao externa relevante.";
-    confidenceScore = 0.74;
-  } else if (metrics.trend.code === "alta" || eventPressure >= 4) {
+    confidenceScore = regionalSpread > 12 ? 0.69 : 0.74;
+  } else if (metrics.trend.code === "alta" || eventPressure >= 4 || regionalSpread > 18) {
     signalType = "pressao_de_alta";
     message = `${product.name} mostra pressao de alta e pode encarecer se o contexto persistir.`;
     recommendation = "Antecipar monitoramento ou compra";
-    rationale = "Alta recente combinada com eventos externos de custo ou oferta sugere continuidade de pressao.";
-    confidenceScore = 0.71;
-  } else if (metrics.trend.code === "queda" && metrics.status.code !== "acima_faixa") {
+    rationale = "Alta recente combinada com eventos externos de custo, oferta ou dispersao regional sugere continuidade de pressao.";
+    confidenceScore = regionalSpread > 18 ? 0.74 : 0.71;
+  } else if (metrics.trend.code === "queda" && metrics.status.code !== "acima_faixa" && regionalSpread < 15) {
     signalType = "possivel_acomodacao";
     message = `${product.name} indica possivel acomodacao de preco no curto prazo.`;
     recommendation = "Acompanhar acomodacao";
@@ -65,7 +75,28 @@ export function buildRecommendationSignal(
     message,
     rationale,
     recommendation,
+    regionalSpread: Number(regionalSpread.toFixed(2)),
+    pressureScore,
     basedOnDate,
     validUntil,
   };
+}
+
+function computeRegionalSpread(records: PriceRecordWithRelations[]) {
+  if (records.length < 2) return 0;
+  const latestByCity = new Map<string, number>();
+
+  for (const record of records) {
+    latestByCity.set(record.city, record.totalPrice);
+  }
+
+  const prices = Array.from(latestByCity.values());
+  if (prices.length < 2) return 0;
+
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const avg = prices.reduce((sum, price) => sum + price, 0) / prices.length;
+  if (!avg) return 0;
+
+  return ((max - min) / avg) * 100;
 }

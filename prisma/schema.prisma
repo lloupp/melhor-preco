@@ -8,13 +8,18 @@ datasource db {
 }
 
 model Product {
-  id                 Int                  @id
+  id                 Int                  @id @default(autoincrement())
   canonicalKey       String               @unique
   name               String
   category           String
+  subcategory        String?
+  canonicalBrand     String?
   unit               String
   comparableUnit     String
   comparableAmount   Float
+  packageMinAmount   Float?
+  packageMaxAmount   Float?
+  equivalentGroup    String?
   description        String?
   active             Boolean              @default(true)
   createdAt          DateTime             @default(now())
@@ -27,16 +32,29 @@ model Product {
 }
 
 model Market {
-  id              Int                   @id
+  id              Int                   @id @default(autoincrement())
   name            String
+  sourceKey       String?
+  sourceName      String?
+  countryCode     String?
+  regionCode      String?
   city            String
   state           String
+  metroAreaName   String?
   channel         String
   active          Boolean               @default(true)
   createdAt       DateTime              @default(now())
+  countryId       Int?
+  stateId         Int?
+  cityId          Int?
+  metroAreaId     Int?
   priceRecords    PriceRecord[]
   marketFactors   MarketFactor[]
   rawObservations RawPriceObservation[]
+  country         Country?              @relation(fields: [countryId], references: [id], onDelete: SetNull)
+  stateRef        State?                @relation(fields: [stateId], references: [id], onDelete: SetNull)
+  cityRef         City?                 @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  metroArea       MetroArea?            @relation(fields: [metroAreaId], references: [id], onDelete: SetNull)
 }
 
 model PriceRecord {
@@ -82,11 +100,13 @@ model ProductAlias {
   id                  Int      @id @default(autoincrement())
   productId           Int
   alias               String
+  aliasType           String   @default("name_variant")
   brand               String?
   packagePattern      String?
   normalizedUnit      String?
   normalizedAmount    Float?
   confidenceThreshold Float    @default(0.6)
+  evidenceSource      String?
   createdAt           DateTime @default(now())
   product             Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
@@ -104,8 +124,12 @@ model RawPriceObservation {
   rawPackageInfo      String?
   rawPrice            Float
   rawCurrency         String           @default("BRL")
+  countryCode         String?
+  stateCode           String?
+  regionCode          String?
   city                String
   neighborhood        String?
+  metroAreaName       String?
   sourceUrl           String?
   evidenceText        String?
   confidenceScore     Float
@@ -122,6 +146,14 @@ model RawPriceObservation {
   normalizedProduct   Product?         @relation(fields: [normalizedProductId], references: [id], onDelete: SetNull)
   marketId            Int?
   market              Market?          @relation(fields: [marketId], references: [id], onDelete: SetNull)
+  countryId           Int?
+  stateId             Int?
+  cityId              Int?
+  metroAreaId         Int?
+  country             Country?         @relation(fields: [countryId], references: [id], onDelete: SetNull)
+  stateRef            State?           @relation(fields: [stateId], references: [id], onDelete: SetNull)
+  cityRef             City?            @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  metroArea           MetroArea?       @relation(fields: [metroAreaId], references: [id], onDelete: SetNull)
   priceRecord         PriceRecord?
   issues              ProcessingIssue[]
 
@@ -168,13 +200,18 @@ model ExternalEvent {
   severity         Int
   confidenceScore  Float
   signalDirection  String
+  countryCode      String?
+  stateCode        String?
   city             String?
   region           String?
+  metroAreaName    String?
   impactSummary    String?
   createdAt        DateTime               @default(now())
   productLinks     ExternalEventProduct[]
   categoryLinks    ExternalEventCategory[]
   marketFactors    MarketFactor[]
+  connectorId      Int?
+  connector        EconomicConnector?     @relation(fields: [connectorId], references: [id], onDelete: SetNull)
 }
 
 model ExternalEventProduct {
@@ -208,6 +245,8 @@ model PredictionSignal {
   message          String
   rationale        String
   recommendation   String
+  regionalSpread   Float?
+  pressureScore    Float?
   basedOnDate      DateTime
   validUntil       DateTime?
   createdAt        DateTime  @default(now())
@@ -215,4 +254,111 @@ model PredictionSignal {
 
   @@index([productId, basedOnDate])
   @@index([category, basedOnDate])
+}
+
+model Country {
+  id              Int                   @id @default(autoincrement())
+  code            String                @unique
+  name            String
+  createdAt       DateTime              @default(now())
+  states          State[]
+  cities          City[]
+  markets         Market[]
+  rawObservations RawPriceObservation[]
+}
+
+model State {
+  id              Int                   @id @default(autoincrement())
+  countryId       Int
+  code            String
+  name            String
+  regionCode      String
+  createdAt       DateTime              @default(now())
+  country         Country               @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  cities          City[]
+  metroAreas      MetroArea[]
+  markets         Market[]
+  rawObservations RawPriceObservation[]
+
+  @@unique([countryId, code])
+  @@index([regionCode])
+}
+
+model City {
+  id              Int                   @id @default(autoincrement())
+  countryId       Int
+  stateId         Int
+  name            String
+  isCapital       Boolean               @default(false)
+  createdAt       DateTime              @default(now())
+  country         Country               @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  stateRef        State                 @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  metroAreas      MetroAreaCity[]
+  markets         Market[]
+  rawObservations RawPriceObservation[]
+
+  @@unique([stateId, name])
+}
+
+model MetroArea {
+  id              Int                   @id @default(autoincrement())
+  stateId         Int
+  name            String
+  createdAt       DateTime              @default(now())
+  stateRef        State                 @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  cities          MetroAreaCity[]
+  markets         Market[]
+  rawObservations RawPriceObservation[]
+
+  @@unique([stateId, name])
+}
+
+model MetroAreaCity {
+  id          Int       @id @default(autoincrement())
+  metroAreaId Int
+  cityId      Int
+  metroArea   MetroArea @relation(fields: [metroAreaId], references: [id], onDelete: Cascade)
+  city        City      @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  @@unique([metroAreaId, cityId])
+}
+
+model EconomicConnector {
+  id            Int                @id @default(autoincrement())
+  key           String             @unique
+  name          String
+  connectorType String
+  baseUrl       String?
+  status        String             @default("prepared")
+  createdAt     DateTime           @default(now())
+  series         EconomicSeries[]
+  externalEvents ExternalEvent[]
+}
+
+model EconomicSeries {
+  id              Int                   @id @default(autoincrement())
+  connectorId     Int?
+  key             String                @unique
+  name            String
+  category        String
+  frequency       String
+  unit            String
+  scope           String
+  status          String                @default("prepared")
+  createdAt       DateTime              @default(now())
+  connector       EconomicConnector?    @relation(fields: [connectorId], references: [id], onDelete: SetNull)
+  observations    EconomicObservation[]
+}
+
+model EconomicObservation {
+  id          Int            @id @default(autoincrement())
+  seriesId    Int
+  observedAt  DateTime
+  value       Float
+  sourceLabel String?
+  createdAt   DateTime       @default(now())
+  series      EconomicSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@unique([seriesId, observedAt])
+  @@index([observedAt])
 }

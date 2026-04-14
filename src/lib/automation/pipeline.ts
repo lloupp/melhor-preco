@@ -3,7 +3,7 @@ import { normalizeRawObservation } from "@/lib/automation/normalization";
 import { buildRecommendationSignal } from "@/lib/automation/recommendation";
 import type { PriceRecordWithRelations } from "@/lib/domain/types";
 
-type RawObservationInput = Pick<
+export type RawObservationInput = Pick<
   Prisma.RawPriceObservationUncheckedCreateInput,
   | "sourceType"
   | "sourceName"
@@ -13,12 +13,20 @@ type RawObservationInput = Pick<
   | "rawPackageInfo"
   | "rawPrice"
   | "rawCurrency"
+  | "countryCode"
+  | "stateCode"
+  | "regionCode"
   | "city"
   | "neighborhood"
+  | "metroAreaName"
   | "sourceUrl"
   | "evidenceText"
   | "confidenceScore"
   | "marketId"
+  | "countryId"
+  | "stateId"
+  | "cityId"
+  | "metroAreaId"
 >;
 
 export async function ingestRawObservations(prisma: PrismaClient, inputs: RawObservationInput[]) {

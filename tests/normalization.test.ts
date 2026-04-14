@@ -18,9 +18,14 @@ test("normalizeRawObservation matches canonical product and computes comparable 
         canonicalKey: "cafe-torrado-moido-500g",
         name: "Cafe Torrado e Moido 500g",
         category: "mercearia",
+        subcategory: null,
+        canonicalBrand: null,
         unit: "pacote",
         comparableUnit: "kg",
         comparableAmount: 0.5,
+        packageMinAmount: null,
+        packageMaxAmount: null,
+        equivalentGroup: null,
         description: null,
         active: true,
         createdAt: new Date(),
@@ -29,11 +34,13 @@ test("normalizeRawObservation matches canonical product and computes comparable 
             id: 1,
             productId: 2,
             alias: "cafe tradicional 500g",
+            aliasType: "name_variant",
             brand: null,
             packagePattern: null,
             normalizedUnit: "kg",
             normalizedAmount: 0.5,
             confidenceThreshold: 0.6,
+            evidenceSource: null,
             createdAt: new Date(),
           },
         ],
@@ -61,4 +68,54 @@ test("normalizeRawObservation sends unknown item to review", () => {
 
   assert.equal(result.processingStatus, "pending_review");
   assert.equal(result.normalizedProductId, undefined);
+});
+
+test("normalizeRawObservation uses fuzzy matching but keeps out-of-range package under review", () => {
+  const result = normalizeRawObservation(
+    {
+      rawProductName: "Cafe tradicional 500g versao familia",
+      rawBrand: "Base Cafe",
+      rawPackageInfo: "800g",
+      rawPrice: 24,
+      confidenceScore: 0.91,
+    },
+    [
+      {
+        id: 2,
+        canonicalKey: "cafe-torrado-moido-500g",
+        name: "Cafe Torrado e Moido 500g",
+        category: "mercearia",
+        subcategory: "bebidas_quentes",
+        canonicalBrand: "Base Cafe",
+        unit: "pacote",
+        comparableUnit: "kg",
+        comparableAmount: 0.5,
+        packageMinAmount: 0.45,
+        packageMaxAmount: 0.55,
+        equivalentGroup: "cafe-torrado-moido",
+        description: null,
+        active: true,
+        createdAt: new Date(),
+        aliases: [
+          {
+            id: 1,
+            productId: 2,
+            alias: "cafe tradicional 500g",
+            aliasType: "name_variant",
+            brand: "Base Cafe",
+            packagePattern: null,
+            normalizedUnit: "kg",
+            normalizedAmount: 0.5,
+            confidenceThreshold: 0.6,
+            evidenceSource: null,
+            createdAt: new Date(),
+          },
+        ],
+      },
+    ],
+  );
+
+  assert.equal(result.processingStatus, "pending_review");
+  assert.equal(result.normalizedProductId, 2);
+  assert.match(result.processingNotes ?? "", /embalagem observada/i);
 });
