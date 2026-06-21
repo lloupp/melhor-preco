@@ -2,30 +2,16 @@ import Link from "next/link";
 import { FilterBar } from "@/components/filter-bar";
 import { Badge, Hero, KpiCard, SectionHeader, Shell, SummaryPanel } from "@/components/ui";
 import { formatCurrency } from "@/lib/domain/format";
+import { parseFilters, type SearchParams } from "@/lib/request-filters";
 import { getComparisonViewModel } from "@/lib/services/price-monitor";
-
-function parseFilters(searchParams: Record<string, string | string[] | undefined>) {
-  const getOne = (key: string) => {
-    const value = searchParams[key];
-    return Array.isArray(value) ? value[0] : value;
-  };
-  const parseIntValue = (value?: string) => (value ? Number.parseInt(value, 10) || undefined : undefined);
-
-  return {
-    category: getOne("categoria"),
-    city: getOne("cidade"),
-    marketId: parseIntValue(getOne("mercado")),
-    periodDays: parseIntValue(getOne("periodo")) ?? 30,
-    productId: parseIntValue(getOne("produto_id")),
-  };
-}
 
 export default async function ComparisonPage({
   searchParams,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: Promise<SearchParams>;
 }) {
-  const viewModel = await getComparisonViewModel(parseFilters(await searchParams));
+  const filters = parseFilters(await searchParams, ["category", "city", "marketId", "periodDays", "productId"]);
+  const viewModel = await getComparisonViewModel(filters);
 
   return (
     <Shell>

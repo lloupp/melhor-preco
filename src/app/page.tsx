@@ -2,29 +2,15 @@ import Link from "next/link";
 import { DashboardMomentumChart } from "@/components/dashboard-momentum-chart";
 import { FilterBar } from "@/components/filter-bar";
 import { AlertCard, Badge, Button, Hero, KpiCard, Panel, SectionHeader, Shell, SummaryPanel } from "@/components/ui";
+import { parseFilters, type SearchParams } from "@/lib/request-filters";
 import { getDashboardViewModel } from "@/lib/services/price-monitor";
-
-function parseFilters(searchParams: Record<string, string | string[] | undefined>) {
-  const getOne = (key: string) => {
-    const value = searchParams[key];
-    return Array.isArray(value) ? value[0] : value;
-  };
-  const parseIntValue = (value?: string) => (value ? Number.parseInt(value, 10) || undefined : undefined);
-
-  return {
-    category: getOne("categoria"),
-    city: getOne("cidade"),
-    marketId: parseIntValue(getOne("mercado")),
-    periodDays: parseIntValue(getOne("periodo")) ?? 30,
-  };
-}
 
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: Promise<SearchParams>;
 }) {
-  const filters = parseFilters(await searchParams);
+  const filters = parseFilters(await searchParams, ["category", "city", "marketId", "periodDays"]);
   const viewModel = await getDashboardViewModel(filters);
 
   return (

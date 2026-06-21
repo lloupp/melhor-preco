@@ -4,31 +4,19 @@ import { FilterBar } from "@/components/filter-bar";
 import { PriceHistoryChart } from "@/components/price-history-chart";
 import { Badge, Hero, MetricTile, SectionHeader, Shell, SummaryPanel } from "@/components/ui";
 import { formatCurrency, formatPriceRange, formatPercentage } from "@/lib/domain/format";
+import { parseFilters, type SearchParams } from "@/lib/request-filters";
 import { getProductViewModel } from "@/lib/services/price-monitor";
-
-function parseFilters(searchParams: Record<string, string | string[] | undefined>) {
-  const getOne = (key: string) => {
-    const value = searchParams[key];
-    return Array.isArray(value) ? value[0] : value;
-  };
-  const parseIntValue = (value?: string) => (value ? Number.parseInt(value, 10) || undefined : undefined);
-
-  return {
-    city: getOne("cidade"),
-    marketId: parseIntValue(getOne("mercado")),
-    periodDays: parseIntValue(getOne("periodo")) ?? 30,
-  };
-}
 
 export default async function ProductPage({
   params,
   searchParams,
 }: {
   params: Promise<{ productId: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: Promise<SearchParams>;
 }) {
   const { productId } = await params;
-  const viewModel = await getProductViewModel(Number(productId), parseFilters(await searchParams));
+  const filters = parseFilters(await searchParams, ["city", "marketId", "periodDays"]);
+  const viewModel = await getProductViewModel(Number(productId), filters);
   if (!viewModel) notFound();
 
   const { product, metrics } = viewModel;
